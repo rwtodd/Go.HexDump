@@ -29,9 +29,11 @@ type formatter interface {
 }
 ```
 
-So, ultimately, the plan is to make combinations of basic formats also follow the `formatter` interface, and plug
-into the engine I've already put in place.  You can imagine a type representing aggregates of smaller formats, 
-which add up the `bytesNeeded` into the total that will be needed for all.
+So, ultimately, the plan is for all user-defined format directives follow the `formatter` interface, and plug
+them into the engine I've already put in place.  You can imagine a type representing aggregates of these formats, 
+which adds up the `bytesNeeded` into the total that will be needed for the entire line.  Of course there will
+also be an aggregate type to combine lines, which asks for the maximum number of bytes any of the lines
+require.
 
 So, I don't know when or if I will get around to filling this functionality out, but the
 hooks are in place to make it go smoothly. 
