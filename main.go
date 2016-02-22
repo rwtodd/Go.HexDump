@@ -52,6 +52,51 @@ func engine(in io.Reader, f formatter) error {
 }
 
 // ===================
+// Serial Formatter
+// ===================
+type serial []formatter
+
+func (s *serial) bytesNeeded() int {
+	ans := 0
+	for _, v := range *s {
+		ans += v.bytesNeeded()
+	}
+	return ans
+}
+
+func (s *serial) format(loc uint64, bytes []byte) string {
+	var lines = make([]string, 0, len(*s))
+	for _, v := range *s {
+		lines = append(lines, v.format(loc, bytes))
+	}
+	return strings.Join(lines,"");
+}
+
+// ===================
+// Parallel Formatter
+// ===================
+type parallel []formatter
+
+func (p *parallel) bytesNeeded() int {
+	ans := 0
+	for _, v := range *p {
+		bn := v.bytesNeeded()
+		if bn > ans {
+			ans = bn
+		}
+	}
+	return ans
+}
+
+func (p *parallel) format(loc uint64, bytes []byte) string {
+	var lines = make([]string, 0, len(*p))
+	for _, v := range *p {
+		lines = append(lines, v.format(loc, bytes))
+	}
+	return strings.Join(lines,"");
+}
+
+// ===================
 // Canonical Formatter
 // ===================
 type canonical struct{}
@@ -80,6 +125,9 @@ func (c canonical) format(loc uint64, bytes []byte) string {
 	return fmt.Sprintf("%08X:  %-49s |%-16s|\n", loc, hexpart, chpart)
 }
 
+// ==================
+// Main
+// ==================
 func main() {
 	flag.Parse()
 	var fl *os.File = os.Stdin
@@ -106,8 +154,10 @@ func main() {
 	}
 
 	// format the output
-	var masterFormat canonical
-	if err = engine(fl, masterFormat); err != nil {
+	var allFormats parallel
+	var cfmt canonical
+	allFormats = append(allFormats, cfmt)
+	if err = engine(fl, &allFormats); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s", err.Error())
 		os.Exit(1)
 	}
