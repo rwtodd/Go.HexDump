@@ -42,7 +42,7 @@ func (fs *fmtString) bytesNeeded() int {
 	return fs.repeat * fs.size
 }
 
-func (fs *fmtString) format(loc uint64, bytes []byte) string {
+func format1b(fs *fmtString, bytes []byte) string {
 	var ans = make([]string, 0, fs.repeat)
 
 	var mx = len(bytes)
@@ -61,4 +61,96 @@ func (fs *fmtString) format(loc uint64, bytes []byte) string {
 		ans = append(ans, strings.Repeat(" ", (fs.repeat-mx)*fs.explen))
 	}
 	return strings.Join(ans, "")
+}
+
+func format2b(fs *fmtString, bytes []byte) string {
+	// first convert to 2-byte ints ...
+	var words = make([]uint16, 0, fs.repeat)
+
+	var blen = len(bytes)
+	for idx := 0; idx < blen; {
+		var word = uint16(bytes[idx])
+		idx++
+		if idx < blen {
+			word |= uint16(bytes[idx]) << 8
+		}
+		idx++
+
+		words = append(words, word)
+	}
+
+	// now, run across the ints like we did bytes in format1b
+	var ans = make([]string, 0, fs.repeat)
+
+	var mx = len(words)
+	if mx > fs.repeat {
+		mx = fs.repeat
+	}
+	for idx := 0; idx < mx; idx++ {
+		// FIXME RWT do I need to support non-byte conversions?  I think not...
+		ans = append(ans, fmt.Sprintf(fs.str, words[idx]))
+	}
+
+	if mx < fs.repeat {
+		ans = append(ans, strings.Repeat(" ", (fs.repeat-mx)*fs.explen))
+	}
+	return strings.Join(ans, "")
+}
+
+func format4b(fs *fmtString, bytes []byte) string {
+	// first convert to 2-byte ints ...
+	var dwords = make([]uint32, 0, fs.repeat)
+
+	var blen = len(bytes)
+	for idx := 0; idx < blen; {
+		var dword = uint32(bytes[idx])
+		idx++
+		if idx < blen {
+			dword |= uint32(bytes[idx]) << 8
+		}
+		idx++
+		if idx < blen {
+			dword |= uint32(bytes[idx]) << 16
+		}
+		idx++
+		if idx < blen {
+			dword |= uint32(bytes[idx]) << 24
+		}
+		idx++
+
+		dwords = append(dwords, dword)
+	}
+
+	// now, run across the ints like we did bytes in format1b
+	var ans = make([]string, 0, fs.repeat)
+
+	var mx = len(dwords)
+	if mx > fs.repeat {
+		mx = fs.repeat
+	}
+	for idx := 0; idx < mx; idx++ {
+		// FIXME RWT do I need to support non-byte conversions?  I think not...
+		ans = append(ans, fmt.Sprintf(fs.str, dwords[idx]))
+	}
+
+	if mx < fs.repeat {
+		ans = append(ans, strings.Repeat(" ", (fs.repeat-mx)*fs.explen))
+	}
+	return strings.Join(ans, "")
+}
+
+func (fs *fmtString) format(loc uint64, bytes []byte) string {
+	var ans string
+
+	switch fs.size {
+	case 1:
+		ans = format1b(fs, bytes)
+	case 2:
+		ans = format2b(fs, bytes)
+	case 4:
+		ans = format4b(fs, bytes)
+	default:
+		ans = "ERROR!!!!!" // RWT FIXME do something better with that
+	}
+	return ans
 }

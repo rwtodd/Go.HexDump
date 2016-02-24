@@ -128,6 +128,28 @@ func addCanonical(format *parallel) {
 	*format = append(*format, &canonC)
 }
 
+func add2Hex(format *parallel) {
+	// handle the hex part.....
+	var canon serial
+	loc := locString("%08x: ")
+	fmt4 := &fmtString{repeat: 4, size: 2, str: "%04X  ", explen: 5, conv: nil}
+	spacer := litString(" ")
+	endl := litString("\n")
+	canon = append(canon, &loc, fmt4, &spacer, fmt4, &endl)
+	*format = append(*format, &canon)
+}
+
+func add4Hex(format *parallel) {
+	// handle the hex part.....
+	var canon serial
+	loc := locString("%08x: ")
+	fmt2 := &fmtString{repeat: 2, size: 4, str: "%08X    ", explen: 12, conv: nil}
+	spacer := litString(" ")
+	endl := litString("\n")
+	canon = append(canon, &loc, fmt2, &spacer, fmt2, &endl)
+	*format = append(*format, &canon)
+}
+
 // ==================
 // Main
 // ==================
@@ -159,6 +181,8 @@ func main() {
 	// format the output
 	var allFormats parallel
 	addCanonical(&allFormats)
+	add2Hex(&allFormats)
+	add4Hex(&allFormats)
 
 	if err = engine(fl, &allFormats); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s", err.Error())
