@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -68,8 +67,20 @@ func (s *serial) format(loc uint64, bytes []byte) string {
 	var lines = make([]string, 0, len(*s))
 	for _, v := range *s {
 		lines = append(lines, v.format(loc, bytes))
+		bn := v.bytesNeeded()
+		lb := len(bytes)
+
+		loc += uint64(bn)
+
+		if bn < lb {
+			bytes = bytes[bn:]
+		} else {
+			if lb > 0 {
+				bytes = make([]byte, 0)
+			}
+		}
 	}
-	return strings.Join(lines,"");
+	return strings.Join(lines, "")
 }
 
 // ===================
@@ -93,36 +104,28 @@ func (p *parallel) format(loc uint64, bytes []byte) string {
 	for _, v := range *p {
 		lines = append(lines, v.format(loc, bytes))
 	}
-	return strings.Join(lines,"");
+	return strings.Join(lines, "")
 }
 
 // ===================
 // Canonical Formatter
 // ===================
-type canonical struct{}
+func addCanonical(format *parallel) {
+	// handle the hex part.....
+	var canon serial
+	loc := locString("%08x: ")
+	fmt8 := &fmtString{repeat: 8, size: 1, str: "%02X ", explen: 3, conv: nil}
+	spacer := litString(" ")
+	canon = append(canon, &loc, fmt8, &spacer, fmt8)
+	*format = append(*format, &canon)
 
-func (c canonical) bytesNeeded() int {
-	return 16
-}
-
-func (c canonical) format(loc uint64, bytes []byte) string {
-	hexbuf := make([]string, 0, 16)
-	chbuf := make([]byte, 0, 16)
-
-	for idx, b := range bytes {
-		hexbuf = append(hexbuf, fmt.Sprintf("%02X ", b))
-		if idx == 7 {
-			hexbuf[7] += " " // space in the middle
-		}
-		if !strconv.IsGraphic(rune(b)) {
-			b = '.'
-		}
-		chbuf = append(chbuf, b)
-	}
-	hexpart := strings.Join(hexbuf, "")
-	chpart := string(chbuf)
-
-	return fmt.Sprintf("%08X:  %-49s |%-16s|\n", loc, hexpart, chpart)
+	// handle the char part ....
+	var canonC serial
+	bar := litString("|")
+	fmtC := &fmtString{repeat: 16, size: 1, str: "%c", explen: 1, conv: dotChars}
+	bar2 := litString("|\n")
+	canonC = append(canonC, &bar, fmtC, &bar2)
+	*format = append(*format, &canonC)
 }
 
 // ==================
@@ -155,8 +158,8 @@ func main() {
 
 	// format the output
 	var allFormats parallel
-	var cfmt canonical
-	allFormats = append(allFormats, cfmt)
+	addCanonical(&allFormats)
+
 	if err = engine(fl, &allFormats); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s", err.Error())
 		os.Exit(1)
