@@ -88,6 +88,9 @@ func (s *serial) format(loc uint64, bytes []byte) string {
 // ===================
 type parallel []formatter
 
+// global master formatter
+var masterFormat parallel
+
 func (p *parallel) bytesNeeded() int {
 	ans := 0
 	for _, v := range *p {
@@ -150,6 +153,31 @@ func add4Hex(format *parallel) {
 	*format = append(*format, &canon)
 }
 
+// =================
+// Format setter -- command line argument that sets a format
+// =================
+type formatSetter struct {
+	setter func(p *parallel)
+	text   string
+}
+
+func (fs *formatSetter) String() string {
+	return fs.text
+}
+
+func (fs *formatSetter) Set(_ string) error {
+	fs.setter(&masterFormat)
+	return nil
+}
+
+func (fs *formatSetter) IsBoolFlag() bool { return true }
+
+func init() {
+	flag.Var(&formatSetter{setter: add2Hex, text: "off"}, "x", "format rows of 8 2-byte hex values")
+	flag.Var(&formatSetter{setter: add4Hex, text: "off"}, "x4", "format rows of 4 4-byte hex values")
+	flag.Var(&formatSetter{setter: addCanonical, text: "on"}, "C", "Canonical mode: 16 hex bytes with characters to the side")
+}
+
 // ==================
 // Main
 // ==================
@@ -178,13 +206,13 @@ func main() {
 		}
 	}
 
-	// format the output
-	var allFormats parallel
-	addCanonical(&allFormats)
-	add2Hex(&allFormats)
-	add4Hex(&allFormats)
+	// if no formats were specified, assume canonical
+	if len(masterFormat) == 0 {
+		addCanonical(&masterFormat)
+	}
 
-	if err = engine(fl, &allFormats); err != nil {
+	// format the output
+	if err = engine(fl, &masterFormat); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s", err.Error())
 		os.Exit(1)
 	}
