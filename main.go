@@ -166,7 +166,7 @@ func init() {
 	flag.Var(&formatSetter{cannedFmt: hex4Fmt, text: "off"}, "x4", "format rows of 4 4-byte hex values")
 	flag.Var(&formatSetter{cannedFmt: canonicalFmt, text: "on"}, "C",
 		"Canonical mode: 16 hex bytes with characters to the side")
-	flag.Var(formatParser{}, "f", "format via format string")
+	flag.Var(formatParser{}, "e", "format via a given format string")
 }
 
 // ==================
