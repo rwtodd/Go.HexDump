@@ -113,59 +113,60 @@ func (p *parallel) format(loc uint64, bytes []byte) string {
 }
 
 // ===================
-// Canonical Formatter
+// Command-line switch formats...
 // ===================
-func addCanonical(format *parallel, _ string) {
-	addFromString(format, "@ '%08x: ' 8 '%02X ' ' ' 8 '%02X '")
-
-	// handle the char part ....
-	// TODO: addFromString(format, "'|' 16 '%_c' '|\n'")
-	var canonC serial
-	bar := litString("|")
-	fmtC := &fmtString{repeat: 16, size: 1, str: "%c", explen: 1, conv: dotChars}
-	bar2 := litString("|\n")
-	canonC = append(canonC, &bar, fmtC, &bar2)
-	*format = append(*format, &canonC)
+var canonicalFmt = []string{
+	"@ '%08x: ' 8 '%02X ' ' ' 8 '%02X '",
+	"'|' 16 '%_p' '|\n'",
 }
-
-func add2Hex(format *parallel, _ string) {
-	addFromString(format, "@ '%08x: ' 4/2 '%04X  ' ' ' 4/2 '%04X  ' '\n'")
-}
-
-func add4Hex(format *parallel, _ string) {
-	addFromString(format, "@ '%08x: ' 2/4 '%08X    ' ' ' 2/4 '%08X    ' '\n'")
-}
-
-func addFromString(format *parallel, arg string) {
-	if parsed := parseFormat(arg); parsed != nil {
-		*format = append(*format, parsed)
-	}
-}
+var hex2Fmt = []string{"@ '%08x: ' 4/2 '%04X  ' ' ' 4/2 '%04X  ' '\n'"}
+var hex4Fmt = []string{"@ '%08x: ' 2/4 '%08X    ' ' ' 2/4 '%08X    ' '\n'"}
 
 // =================
-// Format setter -- command line argument that sets a format
+// Format setter -- command line argument that sets a canned format
 // =================
 type formatSetter struct {
-	setter func(p *parallel, arg string)
-	text   string
+	cannedFmt []string
+	text      string
 }
 
 func (fs *formatSetter) String() string {
 	return fs.text
 }
 
-func (fs *formatSetter) Set(arg string) error {
-	fs.setter(&masterFormat, arg)
+func (fs *formatSetter) Set(_ string) error {
+	for _, v := range fs.cannedFmt {
+		if parsed := parseFormat(v); parsed != nil {
+			masterFormat = append(masterFormat, parsed)
+		}
+	}
+
 	return nil
 }
 
 func (fs *formatSetter) IsBoolFlag() bool { return true }
 
+// =================
+// Format Parser -- command line argument that sets a custom format
+// =================
+type formatParser struct{}
+
+func (fs formatParser) String() string { return "off" }
+
+func (fs formatParser) Set(arg string) error {
+	if parsed := parseFormat(arg); parsed != nil {
+		masterFormat = append(masterFormat, parsed)
+	}
+
+	return nil
+}
+
 func init() {
-	flag.Var(&formatSetter{setter: add2Hex, text: "off"}, "x", "format rows of 8 2-byte hex values")
-	flag.Var(&formatSetter{setter: add4Hex, text: "off"}, "x4", "format rows of 4 4-byte hex values")
-	flag.Var(&formatSetter{setter: addCanonical, text: "on"}, "C", "Canonical mode: 16 hex bytes with characters to the side")
-	flag.Var(&formatSetter{setter: addFromString, text: "off"}, "f", "format via format string")
+	flag.Var(&formatSetter{cannedFmt: hex2Fmt, text: "off"}, "x", "format rows of 8 2-byte hex values")
+	flag.Var(&formatSetter{cannedFmt: hex4Fmt, text: "off"}, "x4", "format rows of 4 4-byte hex values")
+	flag.Var(&formatSetter{cannedFmt: canonicalFmt, text: "on"}, "C",
+		"Canonical mode: 16 hex bytes with characters to the side")
+	flag.Var(formatParser{}, "f", "format via format string")
 }
 
 // ==================
@@ -198,7 +199,7 @@ func main() {
 
 	// if no formats were specified, assume canonical
 	if len(masterFormat) == 0 {
-		addCanonical(&masterFormat, "")
+		(&formatSetter{cannedFmt: canonicalFmt}).Set("")
 	}
 
 	// format the output

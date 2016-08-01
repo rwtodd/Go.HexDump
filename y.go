@@ -11,7 +11,13 @@ import (
 	"unicode/utf8"
 )
 
-//line parser.y:15
+var escapes *strings.Replacer
+
+func init() {
+	escapes = strings.NewReplacer(`\n`, "\n", `\t`, "\t", `\r`, "\r", `\\`, "\\")
+}
+
+//line parser.y:21
 type yySymType struct {
 	yys  int
 	val  int
@@ -40,7 +46,7 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyInitialStackSize = 16
 
-//line parser.y:77
+//line parser.y:83
 
 /* start of program */
 
@@ -506,57 +512,57 @@ yydefault:
 
 	case 1:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line parser.y:32
+		//line parser.y:38
 		{
 			yylex.(*formatLex).result = &(yyDollar[1].ser) // a hack, but it works
 		}
 	case 2:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line parser.y:38
+		//line parser.y:44
 		{
 			yyVAL.ser = serial{yyDollar[1].frag}
 		}
 	case 3:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line parser.y:42
+		//line parser.y:48
 		{
 			yyVAL.ser = append(yyDollar[1].ser, yyDollar[2].frag)
 		}
 	case 4:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line parser.y:48
+		//line parser.y:54
 		{
-			yyVAL.frag = &fmtString{repeat: yyDollar[1].val, size: yyDollar[3].val, str: yyDollar[4].str}
+			yyVAL.frag = newFmtString(yyDollar[1].val, yyDollar[3].val, escapes.Replace(yyDollar[4].str))
 		}
 	case 5:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line parser.y:52
+		//line parser.y:58
 		{
-			yyVAL.frag = &fmtString{repeat: yyDollar[1].val, size: 1, str: yyDollar[2].str}
+			yyVAL.frag = newFmtString(yyDollar[1].val, 1, escapes.Replace(yyDollar[2].str))
 		}
 	case 6:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line parser.y:56
+		//line parser.y:62
 		{
-			tmp := locString(yyDollar[2].str)
+			tmp := locString(escapes.Replace(yyDollar[2].str))
 			yyVAL.frag = &tmp
 		}
 	case 7:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line parser.y:61
+		//line parser.y:67
 		{
-			tmp := litString(yyDollar[1].str)
+			tmp := litString(escapes.Replace(yyDollar[1].str))
 			yyVAL.frag = &tmp
 		}
 	case 8:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line parser.y:68
+		//line parser.y:74
 		{
 			yyVAL.val = yyDollar[1].val
 		}
 	case 9:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line parser.y:72
+		//line parser.y:78
 		{
 			yyVAL.val = yyDollar[1].val*10 + yyDollar[2].val
 		}

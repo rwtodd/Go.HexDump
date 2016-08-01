@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -38,6 +39,27 @@ type fmtString struct {
 	conv   func(byte) byte // conversion function
 }
 
+var p_format *regexp.Regexp // used by newFmtString to check for %_p format
+
+func init() {
+	p_format = regexp.MustCompile(`%( ?[+-]?[\d.]*)_p`)
+}
+
+func newFmtString(rpt int, sz int, s string) *fmtString {
+	ans := &fmtString{repeat: rpt, size: sz, str: s}
+
+	// now check for the _p special format...
+	if p_format.MatchString(s) {
+		ans.conv = dotChars
+		ans.str = p_format.ReplaceAllString(s, "%${1}c")
+	}
+
+	// TODO, if I feel like it one day:
+	//  support _u and _c special formats as well
+
+	return ans
+}
+
 func (fs *fmtString) bytesNeeded() int {
 	return fs.repeat * fs.size
 }
@@ -55,6 +77,10 @@ func format1b(fs *fmtString, bytes []byte) string {
 			b = fs.conv(b)
 		}
 		ans = append(ans, fmt.Sprintf(fs.str, b))
+	}
+
+	if fs.explen == 0 && mx > 0 {
+		fs.explen = len(ans[0])
 	}
 
 	if mx < fs.repeat {
@@ -89,6 +115,10 @@ func format2b(fs *fmtString, bytes []byte) string {
 	for idx := 0; idx < mx; idx++ {
 		// FIXME RWT do I need to support non-byte conversions?  I think not...
 		ans = append(ans, fmt.Sprintf(fs.str, words[idx]))
+	}
+
+	if fs.explen == 0 && mx > 0 {
+		fs.explen = len(ans[0])
 	}
 
 	if mx < fs.repeat {
@@ -133,6 +163,10 @@ func format4b(fs *fmtString, bytes []byte) string {
 		ans = append(ans, fmt.Sprintf(fs.str, dwords[idx]))
 	}
 
+	if fs.explen == 0 && mx > 0 {
+		fs.explen = len(ans[0])
+	}
+
 	if mx < fs.repeat {
 		ans = append(ans, strings.Repeat(" ", (fs.repeat-mx)*fs.explen))
 	}
@@ -152,5 +186,6 @@ func (fs *fmtString) format(loc uint64, bytes []byte) string {
 	default:
 		ans = "ERROR!!!!!" // RWT FIXME do something better with that
 	}
+
 	return ans
 }

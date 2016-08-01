@@ -10,6 +10,12 @@ import (
 	"unicode/utf8"
 )
 
+var escapes *strings.Replacer
+
+func init() {
+	escapes = strings.NewReplacer(`\n`, "\n", `\t`, "\t", `\r`, "\r", `\\`, "\\")
+}
+
 %}
 
 %union{
@@ -46,20 +52,20 @@ format : fragment
 
 fragment : number SLASH number STRING
 	{
-		$$ = &fmtString{ repeat: $1, size: $3, str: $4 }	
+		$$ = newFmtString($1, $3, escapes.Replace($4))
 	}
 	| number STRING
 	{
-		$$ = &fmtString{ repeat: $1, size: 1, str: $2 }	
+		$$ = newFmtString($1, 1, escapes.Replace($2)) 
 	}
 	| LOC STRING
 	{
-		tmp := locString($2)
+		tmp := locString(escapes.Replace($2))
 		$$ = &tmp
 	}
 	| STRING
 	{
-		tmp := litString($1)
+		tmp := litString(escapes.Replace($1))
 		$$ = &tmp
 	}
 	;
