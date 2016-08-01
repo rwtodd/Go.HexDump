@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+//go:generate go tool yacc parser.y
+
 // Flags...
 var offset = flag.Uint64("s", 0, "bytes to skip before starting")
 var lenToDo = flag.Uint64("n", 1<<64-1, "max number of bytes to interpret")
@@ -113,16 +115,11 @@ func (p *parallel) format(loc uint64, bytes []byte) string {
 // ===================
 // Canonical Formatter
 // ===================
-func addCanonical(format *parallel) {
-	// handle the hex part.....
-	var canon serial
-	loc := locString("%08x: ")
-	fmt8 := &fmtString{repeat: 8, size: 1, str: "%02X ", explen: 3, conv: nil}
-	spacer := litString(" ")
-	canon = append(canon, &loc, fmt8, &spacer, fmt8)
-	*format = append(*format, &canon)
+func addCanonical(format *parallel, _ string) {
+	addFromString(format, "@ '%08x: ' 8 '%02X ' ' ' 8 '%02X '")
 
 	// handle the char part ....
+	// TODO: addFromString(format, "'|' 16 '%_c' '|\n'")
 	var canonC serial
 	bar := litString("|")
 	fmtC := &fmtString{repeat: 16, size: 1, str: "%c", explen: 1, conv: dotChars}
@@ -131,33 +128,25 @@ func addCanonical(format *parallel) {
 	*format = append(*format, &canonC)
 }
 
-func add2Hex(format *parallel) {
-	// handle the hex part.....
-	var canon serial
-	loc := locString("%08x: ")
-	fmt4 := &fmtString{repeat: 4, size: 2, str: "%04X  ", explen: 5, conv: nil}
-	spacer := litString(" ")
-	endl := litString("\n")
-	canon = append(canon, &loc, fmt4, &spacer, fmt4, &endl)
-	*format = append(*format, &canon)
+func add2Hex(format *parallel, _ string) {
+	addFromString(format, "@ '%08x: ' 4/2 '%04X  ' ' ' 4/2 '%04X  ' '\n'")
 }
 
-func add4Hex(format *parallel) {
-	// handle the hex part.....
-	var canon serial
-	loc := locString("%08x: ")
-	fmt2 := &fmtString{repeat: 2, size: 4, str: "%08X    ", explen: 12, conv: nil}
-	spacer := litString(" ")
-	endl := litString("\n")
-	canon = append(canon, &loc, fmt2, &spacer, fmt2, &endl)
-	*format = append(*format, &canon)
+func add4Hex(format *parallel, _ string) {
+	addFromString(format, "@ '%08x: ' 2/4 '%08X    ' ' ' 2/4 '%08X    ' '\n'")
+}
+
+func addFromString(format *parallel, arg string) {
+	if parsed := parseFormat(arg); parsed != nil {
+		*format = append(*format, parsed)
+	}
 }
 
 // =================
 // Format setter -- command line argument that sets a format
 // =================
 type formatSetter struct {
-	setter func(p *parallel)
+	setter func(p *parallel, arg string)
 	text   string
 }
 
@@ -165,8 +154,8 @@ func (fs *formatSetter) String() string {
 	return fs.text
 }
 
-func (fs *formatSetter) Set(_ string) error {
-	fs.setter(&masterFormat)
+func (fs *formatSetter) Set(arg string) error {
+	fs.setter(&masterFormat, arg)
 	return nil
 }
 
@@ -176,6 +165,7 @@ func init() {
 	flag.Var(&formatSetter{setter: add2Hex, text: "off"}, "x", "format rows of 8 2-byte hex values")
 	flag.Var(&formatSetter{setter: add4Hex, text: "off"}, "x4", "format rows of 4 4-byte hex values")
 	flag.Var(&formatSetter{setter: addCanonical, text: "on"}, "C", "Canonical mode: 16 hex bytes with characters to the side")
+	flag.Var(&formatSetter{setter: addFromString, text: "off"}, "f", "format via format string")
 }
 
 // ==================
@@ -208,7 +198,7 @@ func main() {
 
 	// if no formats were specified, assume canonical
 	if len(masterFormat) == 0 {
-		addCanonical(&masterFormat)
+		addCanonical(&masterFormat, "")
 	}
 
 	// format the output

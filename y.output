@@ -1,0 +1,128 @@
+
+state 0
+	$accept: .start $end 
+
+	DIGIT  shift 7
+	LOC  shift 5
+	STRING  shift 6
+	.  error
+
+	number  goto 4
+	start  goto 1
+	fragment  goto 3
+	format  goto 2
+
+state 1
+	$accept:  start.$end 
+
+	$end  accept
+	.  error
+
+
+state 2
+	start:  format.    (1)
+	format:  format.fragment 
+
+	DIGIT  shift 7
+	LOC  shift 5
+	STRING  shift 6
+	.  reduce 1 (src line 31)
+
+	number  goto 4
+	fragment  goto 8
+
+state 3
+	format:  fragment.    (2)
+
+	.  reduce 2 (src line 37)
+
+
+state 4
+	fragment:  number.SLASH number STRING 
+	fragment:  number.STRING 
+	number:  number.DIGIT 
+
+	DIGIT  shift 11
+	SLASH  shift 9
+	STRING  shift 10
+	.  error
+
+
+state 5
+	fragment:  LOC.STRING 
+
+	STRING  shift 12
+	.  error
+
+
+state 6
+	fragment:  STRING.    (7)
+
+	.  reduce 7 (src line 60)
+
+
+state 7
+	number:  DIGIT.    (8)
+
+	.  reduce 8 (src line 67)
+
+
+state 8
+	format:  format fragment.    (3)
+
+	.  reduce 3 (src line 41)
+
+
+state 9
+	fragment:  number SLASH.number STRING 
+
+	DIGIT  shift 7
+	.  error
+
+	number  goto 13
+
+state 10
+	fragment:  number STRING.    (5)
+
+	.  reduce 5 (src line 51)
+
+
+state 11
+	number:  number DIGIT.    (9)
+
+	.  reduce 9 (src line 71)
+
+
+state 12
+	fragment:  LOC STRING.    (6)
+
+	.  reduce 6 (src line 55)
+
+
+state 13
+	fragment:  number SLASH number.STRING 
+	number:  number.DIGIT 
+
+	DIGIT  shift 11
+	STRING  shift 14
+	.  error
+
+
+state 14
+	fragment:  number SLASH number STRING.    (4)
+
+	.  reduce 4 (src line 47)
+
+
+7 terminals, 5 nonterminals
+10 grammar rules, 15/2000 states
+0 shift/reduce, 0 reduce/reduce conflicts reported
+54 working sets used
+memory: parser 6/30000
+0 extra closures
+13 shift entries, 1 exceptions
+6 goto entries
+1 entries saved by goto default
+Optimizer space used: output 16/30000
+16 table entries, 0 zero
+maximum spread: 7, maximum offset: 9
