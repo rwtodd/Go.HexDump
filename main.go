@@ -29,8 +29,13 @@ func engine(in io.Reader, f formatter) error {
 	need := f.bytesNeeded()
 	buffer := make([]byte, need)
 	for {
-		got, err := io.ReadFull(in, buffer)
+		// don't over-read...
+		if uint64(need) > (*lenToDo - totalRead) {
+			buffer = buffer[:int(*lenToDo - totalRead)]
+		}
 		location := totalRead + *offset
+
+		got, err := io.ReadFull(in, buffer)
 		var line string
 		switch err {
 		case nil:
@@ -42,9 +47,11 @@ func engine(in io.Reader, f formatter) error {
 		default:
 			return err
 		}
+
 		os.Stdout.WriteString(line)
 		totalRead += uint64(got)
-		if totalRead > *lenToDo {
+
+		if totalRead >= *lenToDo {
 			break
 		}
 	}
